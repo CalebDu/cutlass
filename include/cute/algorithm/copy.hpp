@@ -166,7 +166,9 @@ copy_if(Copy_Atom<CopyArgs...>       const& copy_atom,
 {
   static_assert(SrcLayout::rank == DstLayout::rank, "CopyAtom rank-mismatch.");
   if constexpr (SrcLayout::rank == 1) {   // Dispatch the copy
-    copy_atom.call(src, dst);
+    if(pred()) {
+      copy_atom.call(src, dst);
+    }
   } else {                                // Loop over all but the first mode
     constexpr int R = SrcLayout::rank;
     Tensor src_v = group_modes<1,R>(src);
