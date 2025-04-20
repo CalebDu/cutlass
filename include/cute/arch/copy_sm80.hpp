@@ -96,6 +96,35 @@ struct SM80_CP_ASYNC_CACHEGLOBAL
   }
 };
 
+/// Copy via cp.async with caching at global level
+template <class TS, class TD = TS>
+struct SM80_CP_ASYNC_CACHEGLOBAL_EVICT
+{
+  using SRegisters = TS[1];
+  using DRegisters = TD[1];
+
+  static_assert(sizeof(TS) == sizeof(TD), "cp.async requires sizeof(src_value_type) == sizeof(dst_value_type)");
+  static_assert(sizeof(TS) == 16, "cp.async sizeof(TS) is not supported");
+
+  CUTE_HOST_DEVICE static void
+  copy(TS const& gmem_src,
+       TD      & smem_dst)
+  {
+#if defined(CUTE_ARCH_CP_ASYNC_SM80_ENABLED)
+    TS const* gmem_ptr    = &gmem_src;
+    uint32_t smem_int_ptr = cast_smem_ptr_to_uint(&smem_dst);
+    asm volatile(
+    "{\n"
+    "   .reg .b64 p;\n"
+    "   createpolicy.fractional.L2::evict_first.b64 p, 1.0;"
+    "   cp.async.cg.shared.global.L2::cache_hint [%0], [%1], %2, p;\n"
+    "}\n" :: "r"(smem_int_ptr), "l"(gmem_ptr), "n"(sizeof(TS))
+  );
+#else
+    CUTE_INVALID_CONTROL_PATH("Support for cp.async instructions has not been enabled");
+#endif
+  }
+};
 /// Copy via cp.async with caching at all levels
 template <class TS, class TD = TS>
 struct SM80_CP_ASYNC_CACHEALWAYS_ZFILL
